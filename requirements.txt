@@ -1,0 +1,3 @@
+# Research Monster — Python dependencies
+# NotebookLM automation (unofficial community library; provides the `notebooklm` CLI)
+notebooklm-py>=0.6.0

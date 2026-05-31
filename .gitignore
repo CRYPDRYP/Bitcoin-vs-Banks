@@ -1,0 +1,19 @@
+# NotebookLM auth / profiles — never commit credentials
+.notebooklm/
+**/storage_state.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Obsidian workspace state (keep the notes, drop the local UI state)
+vault/.obsidian/workspace*
+vault/.obsidian/cache
+.trash/
+
+# OS
+.DS_Store
+Thumbs.db

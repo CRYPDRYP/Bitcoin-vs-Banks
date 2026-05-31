@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""
+NotebookLM bridge for the Research Monster.
+
+Drives the `notebooklm` CLI (provided by the `notebooklm-py` package) so the
+NotebookLM "analysis engine" can be automated from Claude Code instead of
+copy-pasting by hand. Heavy reading/analysis runs on Google's compute; the
+results are written straight back into the Obsidian memory layer (vault/).
+
+Typical use (from Claude Code, in plain language → these commands):
+
+    # one-time, interactive, in a real terminal:
+    notebooklm login
+
+    # bundle vault sources into a fresh notebook and pull back a briefing doc:
+    python integrations/notebooklm_bridge.py handoff \
+        --project "Bitcoin vs Banks" \
+        --source https://example.com/article \
+        --source vault/10-sources/some-pdf.pdf \
+        --format briefing-doc \
+        --append "Compare settlement finality and fee structure."
+
+    # ask a one-off question against an existing notebook and save the answer:
+    python integrations/notebooklm_bridge.py ask \
+        --notebook abc123 --project "Bitcoin vs Banks" \
+        "What does the evidence say about chargeback fraud?"
+
+The bridge wraps the CLI via subprocess (rather than the library client)
+because the CLI surface is stable and documented, and it is exactly what a
+human operator would script. All calls use `--json` + `--quiet` so output is
+machine-parseable.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+# --------------------------------------------------------------------------- #
+# Paths
+# --------------------------------------------------------------------------- #
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+VAULT = REPO_ROOT / "vault"
+OUTPUTS = VAULT / "40-outputs"
+
+CLI = "notebooklm"
+
+
+# --------------------------------------------------------------------------- #
+# Low-level CLI plumbing
+# --------------------------------------------------------------------------- #
+
+
+class BridgeError(RuntimeError):
+    """Raised when the notebooklm CLI is missing, unauthenticated, or errors."""
+
+
+def _ensure_cli() -> None:
+    if shutil.which(CLI) is None:
+        raise BridgeError(
+            f"`{CLI}` CLI not found. Install it with:  pip install notebooklm-py"
+        )
+
+
+def _run(args: list[str], *, want_json: bool = True) -> object:
+    """Run `notebooklm --quiet <args> [--json]` and return parsed JSON (or text)."""
+    _ensure_cli()
+    cmd = [CLI, "--quiet", *args]
+    if want_json and "--json" not in args:
+        cmd.append("--json")
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        # This CLI may emit its error payload on stdout or stderr; check both.
+        combined = f"{proc.stderr or ''}\n{proc.stdout or ''}".strip()
+        if re.search(r"(auth_required|not logged in|run .*login|unauthenticat|login first)",
+                     combined, re.I):
+            raise BridgeError(
+                "NotebookLM is not authenticated. Run `notebooklm login` in a "
+                "terminal first (it opens a browser)."
+            )
+        raise BridgeError(f"`{' '.join(cmd)}` failed:\n{combined}")
+
+    out = (proc.stdout or "").strip()
+    if not want_json:
+        return out
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        # Some commands print a JSON object embedded in surrounding text.
+        match = re.search(r"(\{.*\}|\[.*\])", out, re.S)
+        if match:
+            return json.loads(match.group(1))
+        return out
+
+
+def _first(d: object, *keys: str, default=None):
+    """Return the first present key from a dict (case-insensitive-ish)."""
+    if isinstance(d, dict):
+        for k in keys:
+            if k in d and d[k] not in (None, ""):
+                return d[k]
+    return default
+
+
+# --------------------------------------------------------------------------- #
+# NotebookLM operations
+# --------------------------------------------------------------------------- #
+
+
+def check_auth() -> bool:
+    """Best-effort auth check. Returns True if a session looks usable.
+
+    Uses `list`, which requires authentication, so an unauthenticated profile
+    surfaces here instead of midway through a handoff.
+    """
+    try:
+        _run(["list"], want_json=True)
+        return True
+    except BridgeError:
+        return False
+
+
+def create_notebook(title: str) -> str:
+    data = _run(["create", title])
+    nb_id = _first(data, "id", "notebook_id", "notebookId")
+    if not nb_id:
+        raise BridgeError(f"Could not read new notebook id from: {data!r}")
+    return str(nb_id)
+
+
+def add_source(notebook: str, content: str, *, stype: str | None = None,
+               title: str | None = None) -> dict:
+    args = ["source", "add", content, "-n", notebook]
+    if stype:
+        args += ["--type", stype]
+    if title:
+        args += ["--title", title]
+    data = _run(args)
+    return data if isinstance(data, dict) else {"raw": data}
+
+
+def ask(notebook: str, question: str, sources: list[str] | None = None) -> dict:
+    args = ["ask", question, "-n", notebook]
+    for s in sources or []:
+        args += ["-s", s]
+    data = _run(args)
+    return data if isinstance(data, dict) else {"answer": str(data)}
+
+
+def generate_report(notebook: str, *, fmt: str = "briefing-doc",
+                    description: str | None = None, append: str | None = None,
+                    timeout: int = 300) -> dict:
+    args = ["generate", "report", "-n", notebook, "--format", fmt,
+            "--wait", "--timeout", str(timeout)]
+    if append and fmt != "custom":
+        args += ["--append", append]
+    if description:
+        args.append(description)
+    data = _run(args)
+    return data if isinstance(data, dict) else {"raw": data}
+
+
+def artifact_get(notebook: str, artifact_id: str) -> dict:
+    data = _run(["artifact", "get", artifact_id, "-n", notebook])
+    return data if isinstance(data, dict) else {"raw": data}
+
+
+def extract_text(payload: dict) -> str:
+    """Pull the human-readable body out of an artifact/ask JSON payload."""
+    text = _first(payload, "content", "text", "markdown", "body", "answer",
+                  "report", "summary")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    # Fall back to a readable dump so nothing is silently lost.
+    return "```json\n" + json.dumps(payload, indent=2, ensure_ascii=False) + "\n```"
+
+
+# --------------------------------------------------------------------------- #
+# Vault helpers
+# --------------------------------------------------------------------------- #
+
+
+def _slug(text: str) -> str:
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", text.strip().lower()).strip("-")
+    return s or "untitled"
+
+
+def _classify(content: str) -> str | None:
+    """Auto-detect source type so we can pass the right --type to the CLI."""
+    if re.match(r"^https?://", content):
+        if re.search(r"(youtube\.com|youtu\.be)", content):
+            return "youtube"
+        return "url"
+    if Path(content).exists():
+        return "file"
+    return None  # let the CLI auto-detect / treat as text
+
+
+def write_output(project: str, kind: str, body: str, *,
+                 sources: list[str], notebook: str, artifact_id: str | None) -> Path:
+    """Write a NotebookLM artifact into vault/40-outputs/<project>/ with frontmatter."""
+    proj_dir = OUTPUTS / _slug(project)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = proj_dir / f"{stamp}-{_slug(kind)}.md"
+
+    src_links = "\n".join(f"  - {s}" for s in sources) or "  - (none)"
+    frontmatter = (
+        "---\n"
+        f"title: \"{project} — {kind}\"\n"
+        f"created: {_dt.date.today().isoformat()}\n"
+        "type: notebooklm-output\n"
+        f"engine: notebooklm\n"
+        f"notebook_id: {notebook}\n"
+        f"artifact_id: {artifact_id or ''}\n"
+        f"project: \"{project}\"\n"
+        "sources:\n"
+        f"{src_links}\n"
+        "tags: [notebooklm, output]\n"
+        "---\n\n"
+    )
+    moc = f"[[{_slug(project)}]] · [[Bitcoin-vs-Banks]]"
+    path.write_text(f"{frontmatter}> Generated by NotebookLM. MOC: {moc}\n\n{body}\n",
+                    encoding="utf-8")
+    return path
+
+
+# --------------------------------------------------------------------------- #
+# High-level workflows
+# --------------------------------------------------------------------------- #
+
+
+def cmd_handoff(args: argparse.Namespace) -> int:
+    if not check_auth():
+        print("⚠  Not authenticated. Run `notebooklm login` first.", file=sys.stderr)
+        return 2
+
+    title = args.title or f"{args.project} — {_dt.date.today().isoformat()}"
+    print(f"• Creating notebook: {title}")
+    nb = create_notebook(title)
+    print(f"  notebook id: {nb}")
+
+    for src in args.source:
+        stype = _classify(src)
+        print(f"• Adding source ({stype or 'auto'}): {src}")
+        add_source(nb, src, stype=stype)
+
+    print(f"• Generating {args.format} (this runs on Google's compute)…")
+    report = generate_report(nb, fmt=args.format, description=args.description,
+                             append=args.append, timeout=args.timeout)
+    artifact_id = _first(report, "id", "artifact_id", "artifactId")
+
+    body_payload = report
+    if artifact_id:
+        try:
+            body_payload = artifact_get(nb, str(artifact_id))
+        except BridgeError:
+            pass
+
+    body = extract_text(body_payload)
+    path = write_output(args.project, args.format, body,
+                        sources=args.source, notebook=nb,
+                        artifact_id=str(artifact_id) if artifact_id else None)
+    print(f"✓ Wrote artifact → {path.relative_to(REPO_ROOT)}")
+    print(f"  notebook id (reuse with --notebook): {nb}")
+    return 0
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    if not check_auth():
+        print("⚠  Not authenticated. Run `notebooklm login` first.", file=sys.stderr)
+        return 2
+    result = ask(args.notebook, args.question, sources=args.source)
+    body = extract_text(result)
+    if args.save:
+        path = write_output(args.project, f"qa-{_slug(args.question)[:40]}", body,
+                            sources=args.source, notebook=args.notebook,
+                            artifact_id=None)
+        print(f"✓ Saved answer → {path.relative_to(REPO_ROOT)}")
+    print("\n" + body)
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="NotebookLM bridge for the Research Monster.")
+    sub = p.add_subparsers(dest="command", required=True)
+
+    h = sub.add_parser("handoff", help="Create a notebook from sources and pull a report.")
+    h.add_argument("--project", required=True, help="Project name (used for vault paths).")
+    h.add_argument("--title", help="Notebook title (defaults to project + date).")
+    h.add_argument("--source", action="append", default=[],
+                   help="A URL, file path, YouTube link, or inline text. Repeatable.")
+    h.add_argument("--format", default="briefing-doc",
+                   choices=["briefing-doc", "study-guide", "blog-post", "custom"])
+    h.add_argument("--description", help="Custom report prompt (used with --format custom).")
+    h.add_argument("--append", help="Extra instructions appended to non-custom formats.")
+    h.add_argument("--timeout", type=int, default=300)
+    h.set_defaults(func=cmd_handoff)
+
+    a = sub.add_parser("ask", help="Ask an existing notebook a question.")
+    a.add_argument("question")
+    a.add_argument("--notebook", required=True, help="Notebook id (partial ok).")
+    a.add_argument("--project", default="adhoc", help="Project name for vault path if saving.")
+    a.add_argument("--source", action="append", default=[], help="Limit to source ids.")
+    a.add_argument("--save", action="store_true", help="Save the answer into the vault.")
+    a.set_defaults(func=cmd_ask)
+
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        return args.func(args)
+    except BridgeError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
