@@ -65,9 +65,10 @@ start of every session via a `SessionStart` hook.
 │   ├── settings.json          # registers the SessionStart memory hook
 │   ├── hooks/
 │   │   └── load-memory.sh      # prints the memory layer into context
-│   └── skills/                 # the four workflow skills
+│   └── skills/                 # the workflow skills
 │       ├── research-capture/
-│       ├── notebooklm-handoff/
+│       ├── notebooklm-handoff/  # briefings, study guides, Q&A
+│       ├── notebooklm-studio/   # audio / mindmap / flashcards / infographic
 │       ├── synthesize/
 │       └── learn/
 ├── vault/                      # the Obsidian memory layer (open this as a vault)
@@ -95,6 +96,7 @@ start of every session via a `SessionStart` hook.
 4. **Run the loop.** In plain language:
    - "Capture this article: <url>"
    - "Prep a NotebookLM handoff for the sources tagged #consensus"
+   - "Make an audio overview, mindmap, flashcards, and infographic from these sources"
    - "Synthesize what we have on transaction fees"
    - "Update memory with what we learned today"
 

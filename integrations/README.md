@@ -33,6 +33,26 @@ python notebooklm_bridge.py ask \
 Report formats: `briefing-doc` (default), `study-guide`, `blog-post`, `custom`
 (pair with `--description "<full prompt>"`).
 
+### Studio deliverables (audio, mindmap, flashcards, infographic)
+```bash
+# Create a notebook and add sources (YouTube / file / text auto-detected):
+python notebooklm_bridge.py create --project "Bitcoin vs Banks" \
+  --source "https://youtu.be/VIDEO_ID" --source ./papers/whitepaper.pdf
+
+# Add more sources later:
+python notebooklm_bridge.py add-source --notebook abc123 --source ./report.pdf
+
+# Generate any subset of deliverables (omit --deliverable to make all four):
+python notebooklm_bridge.py studio --project "Bitcoin vs Banks" --notebook abc123 \
+  --deliverable audio --deliverable mindmap \
+  --deliverable flashcards --deliverable infographic \
+  --audio-format deep-dive --infographic-style professional \
+  --description "Focus on settlement finality and fee comparison."
+```
+Each deliverable is written to `vault/40-outputs/<project>/` as a card with frontmatter
+(`deliverable`, `status`, `notebook_id`, `artifact_id`, `url`, `sources`). See the
+`notebooklm-studio` skill for the agent-facing playbook.
+
 ### How it works
 - Wraps the CLI via `subprocess` with `--json --quiet` and parses the result.
 - Auto-detects each source type (url / youtube / file / text).

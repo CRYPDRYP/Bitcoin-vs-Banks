@@ -172,6 +172,132 @@ def artifact_get(notebook: str, artifact_id: str) -> dict:
     return data if isinstance(data, dict) else {"raw": data}
 
 
+# --------------------------------------------------------------------------- #
+# Deliverables (Studio): audio overview, mind map, flashcards, infographic
+# --------------------------------------------------------------------------- #
+
+# Maps a friendly deliverable name to its CLI subcommand and option schema.
+# `options` maps a CLI flag to the argparse attribute that supplies its value.
+DELIVERABLE_SPECS: dict[str, dict] = {
+    "audio": {
+        "subcmd": ["generate", "audio"],
+        "wait": True, "timeout": 1200, "takes_description": True,
+        "options": {"--format": "audio_format", "--length": "audio_length"},
+        "emoji": "🎙️", "label": "audio overview (podcast)",
+    },
+    "mindmap": {
+        "subcmd": ["generate", "mind-map"],
+        "wait": False, "timeout": None, "takes_description": False,
+        "options": {"--instructions": "mindmap_instructions"},
+        "emoji": "🧠", "label": "mind map",
+    },
+    "flashcards": {
+        "subcmd": ["generate", "flashcards"],
+        "wait": True, "timeout": 300, "takes_description": True,
+        "options": {"--quantity": "flashcards_quantity",
+                    "--difficulty": "flashcards_difficulty"},
+        "emoji": "🃏", "label": "flashcards",
+    },
+    "infographic": {
+        "subcmd": ["generate", "infographic"],
+        "wait": True, "timeout": 300, "takes_description": True,
+        "options": {"--orientation": "infographic_orientation",
+                    "--detail": "infographic_detail",
+                    "--style": "infographic_style"},
+        "emoji": "📊", "label": "infographic",
+    },
+}
+
+
+def generate_deliverable(notebook: str, kind: str, *, description: str | None = None,
+                         options: dict | None = None,
+                         source_ids: list[str] | None = None) -> dict:
+    """Generate one Studio deliverable and (where supported) wait for it."""
+    if kind not in DELIVERABLE_SPECS:
+        raise BridgeError(f"Unknown deliverable '{kind}'. "
+                          f"Choose from: {', '.join(DELIVERABLE_SPECS)}")
+    spec = DELIVERABLE_SPECS[kind]
+    args = list(spec["subcmd"]) + ["-n", notebook]
+    for flag, attr in spec["options"].items():
+        val = (options or {}).get(attr)
+        if val:
+            args += [flag, str(val)]
+    for sid in source_ids or []:
+        args += ["-s", sid]
+    if spec["wait"]:
+        args += ["--wait", "--timeout", str(spec["timeout"])]
+    if spec["takes_description"] and description:
+        args.append(description)
+    data = _run(args)
+    return data if isinstance(data, dict) else {"raw": data}
+
+
+def write_artifact_card(project: str, kind: str, payload: dict, *,
+                        notebook: str, sources: list[str], options: dict) -> Path:
+    """Write a deliverable 'card' into the vault: metadata + link/embed + raw JSON."""
+    spec = DELIVERABLE_SPECS.get(kind, {"emoji": "📦", "label": kind})
+    artifact_id = _first(payload, "id", "artifact_id", "artifactId")
+    url = _first(payload, "url")
+    status = _first(payload, "status", default="unknown")
+    title = _first(payload, "title", default=f"{project} — {spec['label']}")
+
+    # Enrich from `artifact get` when the generate call didn't return the URL yet.
+    if artifact_id and not url:
+        try:
+            got = artifact_get(notebook, str(artifact_id))
+            url = _first(got, "url") or url
+            status = _first(got, "status", default=status)
+            title = _first(got, "title", default=title)
+            payload = {**payload, "_artifact_get": got}
+        except BridgeError:
+            pass
+
+    # Body: link or embed depending on deliverable type.
+    if url and kind == "infographic":
+        media = f"![{title}]({url})\n\n[Open infographic]({url})"
+    elif url:
+        media = f"[▶ Open {spec['label']} in NotebookLM]({url})"
+    else:
+        media = ("_No direct URL returned — open the notebook in NotebookLM to view "
+                 "this deliverable._")
+
+    used = "\n".join(f"- `{k}`: {v}" for k, v in (options or {}).items() if v) or "- (defaults)"
+    src_links = "\n".join(f"  - {s}" for s in sources) or "  - (existing notebook sources)"
+    fm = (
+        "---\n"
+        f"title: \"{title}\"\n"
+        f"created: {_dt.date.today().isoformat()}\n"
+        "type: notebooklm-deliverable\n"
+        f"deliverable: {kind}\n"
+        f"status: {status}\n"
+        "engine: notebooklm\n"
+        f"notebook_id: {notebook}\n"
+        f"artifact_id: {artifact_id or ''}\n"
+        f"url: {url or ''}\n"
+        f"project: \"{project}\"\n"
+        "sources:\n"
+        f"{src_links}\n"
+        f"tags: [notebooklm, deliverable, {kind}]\n"
+        "---\n\n"
+    )
+    body = (
+        f"# {spec['emoji']} {title}\n\n"
+        f"> {spec['label'].capitalize()} generated by NotebookLM · status: **{status}**\n"
+        f"> MOC: [[{_slug(project)}]] · [[Bitcoin-vs-Banks]]\n\n"
+        f"{media}\n\n"
+        f"## Generation settings\n{used}\n\n"
+        f"## Raw response\n```json\n{json.dumps(payload, indent=2, ensure_ascii=False)}\n```\n"
+    )
+
+    proj_dir = OUTPUTS / _slug(project)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = proj_dir / f"{stamp}-{kind}.md"
+    path.write_text(fm + body, encoding="utf-8")
+    return path
+
+
+
 def extract_text(payload: dict) -> str:
     """Pull the human-readable body out of an artifact/ask JSON payload."""
     text = _first(payload, "content", "text", "markdown", "body", "answer",
@@ -288,9 +414,138 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def _require_auth() -> bool:
+    if not check_auth():
+        print("⚠  Not authenticated. Run `notebooklm login` first.", file=sys.stderr)
+        return False
+    return True
+
+
+def _resolve_notebook(args: argparse.Namespace) -> tuple[str, list[str]]:
+    """Return (notebook_id, sources_added). Reuse --notebook, else create from --source."""
+    sources = list(getattr(args, "source", []) or [])
+    if getattr(args, "notebook", None):
+        nb = args.notebook
+        for src in sources:
+            stype = _classify(src)
+            print(f"• Adding source ({stype or 'auto'}): {src}")
+            add_source(nb, src, stype=stype)
+        return nb, sources
+    if not sources:
+        raise BridgeError("Provide either --notebook <id> or one or more --source.")
+    title = getattr(args, "title", None) or f"{args.project} — {_dt.date.today().isoformat()}"
+    print(f"• Creating notebook: {title}")
+    nb = create_notebook(title)
+    print(f"  notebook id: {nb}")
+    for src in sources:
+        stype = _classify(src)
+        print(f"• Adding source ({stype or 'auto'}): {src}")
+        add_source(nb, src, stype=stype)
+    return nb, sources
+
+
+def cmd_create(args: argparse.Namespace) -> int:
+    if not _require_auth():
+        return 2
+    title = args.title or f"{args.project} — {_dt.date.today().isoformat()}"
+    nb = create_notebook(title)
+    for src in args.source:
+        stype = _classify(src)
+        print(f"• Adding source ({stype or 'auto'}): {src}")
+        add_source(nb, src, stype=stype)
+    print(f"✓ Notebook ready: {nb}")
+    print(f"  reuse it with:  --notebook {nb}")
+    return 0
+
+
+def cmd_add_source(args: argparse.Namespace) -> int:
+    if not _require_auth():
+        return 2
+    for src in args.source:
+        stype = _classify(src)
+        print(f"• Adding source ({stype or 'auto'}): {src}")
+        add_source(args.notebook, src, stype=stype, title=args.title)
+    print(f"✓ Added {len(args.source)} source(s) to {args.notebook}")
+    return 0
+
+
+def cmd_studio(args: argparse.Namespace) -> int:
+    if not _require_auth():
+        return 2
+    nb, sources = _resolve_notebook(args)
+    options = {
+        "audio_format": args.audio_format, "audio_length": args.audio_length,
+        "flashcards_quantity": args.flashcards_quantity,
+        "flashcards_difficulty": args.flashcards_difficulty,
+        "infographic_orientation": args.infographic_orientation,
+        "infographic_detail": args.infographic_detail,
+        "infographic_style": args.infographic_style,
+        "mindmap_instructions": args.mindmap_instructions,
+    }
+    deliverables = args.deliverable or ["audio", "mindmap", "flashcards", "infographic"]
+    rc = 0
+    for kind in deliverables:
+        spec = DELIVERABLE_SPECS[kind]
+        print(f"{spec['emoji']} Generating {spec['label']} (on Google's compute)…")
+        try:
+            payload = generate_deliverable(nb, kind, description=args.description,
+                                           options=options, source_ids=args.source_id)
+            path = write_artifact_card(args.project, kind, payload,
+                                       notebook=nb, sources=sources, options=options)
+            print(f"   ✓ {kind} → {path.relative_to(REPO_ROOT)}")
+        except BridgeError as e:
+            rc = 1
+            print(f"   ✗ {kind} failed: {e}", file=sys.stderr)
+    print(f"\nNotebook id (reuse with --notebook): {nb}")
+    return rc
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="NotebookLM bridge for the Research Monster.")
     sub = p.add_subparsers(dest="command", required=True)
+
+    c = sub.add_parser("create", help="Create a notebook and optionally add sources.")
+    c.add_argument("--project", required=True, help="Project name (used for the title).")
+    c.add_argument("--title", help="Notebook title (defaults to project + date).")
+    c.add_argument("--source", action="append", default=[],
+                   help="URL / file / YouTube / text to add. Repeatable.")
+    c.set_defaults(func=cmd_create)
+
+    s = sub.add_parser("add-source", help="Add one or more sources to an existing notebook.")
+    s.add_argument("--notebook", required=True, help="Notebook id (partial ok).")
+    s.add_argument("--source", action="append", default=[], required=True,
+                   help="URL / file / YouTube / text. Repeatable.")
+    s.add_argument("--title", help="Custom title for text/file sources.")
+    s.set_defaults(func=cmd_add_source)
+
+    d = sub.add_parser("studio",
+                       help="Generate deliverables (audio, mindmap, flashcards, infographic).")
+    d.add_argument("--project", required=True, help="Project name (used for vault paths).")
+    d.add_argument("--notebook", help="Existing notebook id. Omit to create from --source.")
+    d.add_argument("--title", help="Notebook title when creating (defaults to project + date).")
+    d.add_argument("--source", action="append", default=[],
+                   help="Sources to create a notebook from (if --notebook omitted). Repeatable.")
+    d.add_argument("--deliverable", action="append",
+                   choices=list(DELIVERABLE_SPECS),
+                   help="Which deliverable(s) to make. Repeatable. Default: all four.")
+    d.add_argument("--description", help="Shared focus prompt applied to deliverables that accept one.")
+    d.add_argument("--source-id", action="append", default=[],
+                   help="Limit generation to specific source ids. Repeatable.")
+    # audio
+    d.add_argument("--audio-format", choices=["deep-dive", "brief", "critique", "debate"])
+    d.add_argument("--audio-length", choices=["short", "default", "long"])
+    # flashcards
+    d.add_argument("--flashcards-quantity", choices=["fewer", "standard", "more"])
+    d.add_argument("--flashcards-difficulty", choices=["easy", "medium", "hard"])
+    # infographic
+    d.add_argument("--infographic-orientation", choices=["landscape", "portrait", "square"])
+    d.add_argument("--infographic-detail", choices=["concise", "standard", "detailed"])
+    d.add_argument("--infographic-style",
+                   choices=["auto", "sketch-note", "professional", "bento-grid", "editorial",
+                            "instructional", "bricks", "clay", "anime", "kawaii", "scientific"])
+    # mindmap
+    d.add_argument("--mindmap-instructions", help="Custom instructions for the mind map.")
+    d.set_defaults(func=cmd_studio)
 
     h = sub.add_parser("handoff", help="Create a notebook from sources and pull a report.")
     h.add_argument("--project", required=True, help="Project name (used for vault paths).")
