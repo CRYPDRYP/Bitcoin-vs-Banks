@@ -1,3 +1,5 @@
 # Research Monster — Python dependencies
 # NotebookLM automation (unofficial community library; provides the `notebooklm` CLI)
-notebooklm-py>=0.6.0
+# The [browser] extra pulls in Playwright, needed for the `notebooklm login` step.
+# After install, also run:  python3 -m playwright install chromium
+notebooklm-py[browser]>=0.6.0

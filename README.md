@@ -98,6 +98,7 @@ start of every session via a `SessionStart` hook.
    Or do it by hand:
    ```bash
    pip install -r requirements.txt
+   python -m playwright install chromium     # browser engine used by the login step
    notebooklm login
    python integrations/notebooklm_bridge.py doctor   # ✓ everything green = ready
    ```

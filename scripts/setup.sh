@@ -12,23 +12,28 @@ cd "$ROOT"
 echo "🧠 Research Monster setup"
 echo "========================="
 
-# 1. Python deps (installs notebooklm-py → the `notebooklm` CLI)
+# 1. Python deps (installs notebooklm-py[browser] → the `notebooklm` CLI + Playwright)
 echo
-echo "1/3 · Installing Python dependencies…"
+echo "1/4 · Installing Python dependencies…"
 python3 -m pip install -r requirements.txt
 
-# 2. NotebookLM login (interactive — opens a browser)
+# 2. Browser engine for the login step (NotebookLM auth automates a real browser)
+echo
+echo "2/4 · Installing the Chromium browser engine for login…"
+python3 -m playwright install chromium
+
+# 3. NotebookLM login (interactive — opens a browser)
 echo
 if python3 integrations/notebooklm_bridge.py doctor >/dev/null 2>&1; then
-  echo "2/3 · Already authenticated with NotebookLM — skipping login."
+  echo "3/4 · Already authenticated with NotebookLM — skipping login."
 else
-  echo "2/3 · Logging in to NotebookLM (a browser window will open)…"
+  echo "3/4 · Logging in to NotebookLM (a browser window will open)…"
   notebooklm login
 fi
 
-# 3. Verify the whole install
+# 4. Verify the whole install
 echo
-echo "3/3 · Verifying…"
+echo "4/4 · Verifying…"
 python3 integrations/notebooklm_bridge.py doctor
 
 echo

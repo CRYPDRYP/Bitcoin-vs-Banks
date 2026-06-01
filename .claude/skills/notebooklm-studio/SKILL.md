@@ -16,11 +16,14 @@ runs on Google's compute, not Claude tokens, and results land in the vault.
 ## Prerequisites (once)
 
 ```bash
-pip install -r requirements.txt          # installs notebooklm-py
+pip install -r requirements.txt          # installs notebooklm-py[browser]
+python -m playwright install chromium     # browser engine used by login
 notebooklm login                         # opens a browser — the USER must run this
                                          # in their own terminal; it can't run in a sandbox
 ```
-If any command prints "Not authenticated", stop and tell the user to run `notebooklm login`.
+If login says "Playwright not installed", run `pip install "notebooklm-py[browser]"`
+then `python -m playwright install chromium`. If any command prints "Not authenticated",
+stop and tell the user to run `notebooklm login`.
 
 ## Capabilities → commands
 
