@@ -88,11 +88,18 @@ start of every session via a `SessionStart` hook.
 
 ## Quickstart
 
-1. **Clone & open the vault.** Open the `vault/` folder as an Obsidian vault.
-2. **Install Skill Creator** (optional, for building new skills):
-   the skills in `.claude/skills/` already work with Claude Code as-is.
+1. **Clone & open the vault.** Clone this repo locally and open the `vault/` folder as an
+   Obsidian vault.
+2. **Install the NotebookLM engine & log in** (interactive — needs a browser, so run it on
+   your own machine, not in a cloud session):
+   ```bash
+   pip install -r requirements.txt
+   notebooklm login
+   python integrations/notebooklm_bridge.py doctor   # ✓ everything green = ready
+   ```
 3. **Start a Claude Code session** in this repo. The `SessionStart` hook loads your memory
    layer automatically, so Claude greets you already knowing your active project.
+   (Skill Creator is optional — the skills in `.claude/skills/` work as-is.)
 4. **Run the loop.** In plain language:
    - "Capture this article: <url>"
    - "Prep a NotebookLM handoff for the sources tagged #consensus"

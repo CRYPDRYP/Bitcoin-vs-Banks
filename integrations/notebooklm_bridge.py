@@ -500,9 +500,60 @@ def cmd_studio(args: argparse.Namespace) -> int:
     return rc
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Check that the installation is finished: CLI present, logged in, vault ready."""
+    ok = True
+
+    # 1. CLI installed?
+    cli_path = shutil.which(CLI)
+    if cli_path:
+        try:
+            ver = subprocess.run([CLI, "--version"], capture_output=True, text=True).stdout.strip()
+        except Exception:
+            ver = "?"
+        print(f"✓ notebooklm CLI installed  ({ver or cli_path})")
+    else:
+        ok = False
+        print("✗ notebooklm CLI not found  →  pip install -r requirements.txt")
+
+    # 2. Authenticated?
+    if cli_path:
+        if check_auth():
+            print("✓ authenticated with NotebookLM")
+        else:
+            ok = False
+            print("✗ not authenticated  →  notebooklm login   (opens a browser)")
+
+    # 3. Vault layout present?
+    needed = ["00-inbox", "10-sources", "20-notes", "30-synthesis", "40-outputs",
+              "MOCs", "_memory", "_templates"]
+    missing = [d for d in needed if not (VAULT / d).is_dir()]
+    if missing:
+        ok = False
+        print(f"✗ vault folders missing: {', '.join(missing)}")
+    else:
+        print("✓ Obsidian vault layout present")
+
+    # 4. SessionStart memory hook present?
+    hook = REPO_ROOT / ".claude" / "hooks" / "load-memory.sh"
+    print(f"{'✓' if hook.is_file() else '✗'} memory hook "
+          f"({hook.relative_to(REPO_ROOT)})")
+
+    print("\n" + ("🎉 Installation complete — try a `studio` or `handoff` run."
+                  if ok else
+                  "➡  Resolve the ✗ items above, then re-run: "
+                  "python integrations/notebooklm_bridge.py doctor"))
+    return 0 if ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="NotebookLM bridge for the Research Monster.")
     sub = p.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("doctor",
+                   help="Check the install: CLI present, logged in, vault ready."
+                   ).set_defaults(func=cmd_doctor)
+
 
     c = sub.add_parser("create", help="Create a notebook and optionally add sources.")
     c.add_argument("--project", required=True, help="Project name (used for the title).")
