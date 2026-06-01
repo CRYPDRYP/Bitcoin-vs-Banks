@@ -90,8 +90,12 @@ start of every session via a `SessionStart` hook.
 
 1. **Clone & open the vault.** Clone this repo locally and open the `vault/` folder as an
    Obsidian vault.
-2. **Install the NotebookLM engine & log in** (interactive — needs a browser, so run it on
-   your own machine, not in a cloud session):
+2. **Finish setup with one command** (interactive — needs a browser, so run it on your own
+   machine, not in a cloud session). It installs deps, logs you in, and verifies:
+   ```bash
+   bash scripts/setup.sh
+   ```
+   Or do it by hand:
    ```bash
    pip install -r requirements.txt
    notebooklm login
