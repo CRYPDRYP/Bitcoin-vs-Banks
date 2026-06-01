@@ -101,11 +101,22 @@ def _run(args: list[str], *, want_json: bool = True) -> object:
 
 
 def _first(d: object, *keys: str, default=None):
-    """Return the first present key from a dict (case-insensitive-ish)."""
-    if isinstance(d, dict):
-        for k in keys:
-            if k in d and d[k] not in (None, ""):
-                return d[k]
+    """Find the first of `keys` anywhere in a (possibly nested) dict/list payload.
+
+    The CLI wraps results in envelopes like {"notebook": {"id": ...}} or
+    {"artifact": {"url": ...}}, so we breadth-first search nested containers
+    rather than only the top level.
+    """
+    queue: list = [d]
+    while queue:
+        cur = queue.pop(0)
+        if isinstance(cur, dict):
+            for k in keys:
+                if k in cur and cur[k] not in (None, ""):
+                    return cur[k]
+            queue.extend(cur.values())
+        elif isinstance(cur, list):
+            queue.extend(cur)
     return default
 
 
