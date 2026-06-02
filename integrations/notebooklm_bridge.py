@@ -42,6 +42,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Local sibling module — works both when run as a script (integrations/ on
+# sys.path) and when imported as integrations.notebooklm_bridge.
+try:
+    from . import mindmap_canvas
+except ImportError:  # pragma: no cover - script execution
+    import mindmap_canvas
+
 # --------------------------------------------------------------------------- #
 # Paths
 # --------------------------------------------------------------------------- #
@@ -241,6 +248,26 @@ def generate_deliverable(notebook: str, kind: str, *, description: str | None = 
         args.append(description)
     data = _run(args)
     return data if isinstance(data, dict) else {"raw": data}
+
+
+def download_and_convert_mindmap(project: str, notebook: str, *,
+                                 name: str | None = None,
+                                 artifact_id: str | None = None) -> tuple[Path, Path]:
+    """Download a mind map as JSON and convert it to an Obsidian .canvas file."""
+    proj_dir = OUTPUTS / _slug(project)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    json_path = proj_dir / f"{stamp}-mindmap.json"
+
+    args = ["download", "mind-map", "-n", notebook, str(json_path), "--force"]
+    if name:
+        args += ["--name", name]
+    if artifact_id:
+        args += ["--artifact", artifact_id]
+    _run(args, want_json=False)
+
+    canvas_path = mindmap_canvas.convert(json_path, proj_dir / f"{stamp}-mindmap.canvas")
+    return json_path, canvas_path
 
 
 def write_artifact_card(project: str, kind: str, payload: dict, *,
@@ -504,6 +531,13 @@ def cmd_studio(args: argparse.Namespace) -> int:
             path = write_artifact_card(args.project, kind, payload,
                                        notebook=nb, sources=sources, options=options)
             print(f"   ✓ {kind} → {path.relative_to(REPO_ROOT)}")
+            if kind == "mindmap":
+                try:
+                    _, canvas = download_and_convert_mindmap(args.project, nb)
+                    print(f"   ✓ canvas → {canvas.relative_to(REPO_ROOT)}  "
+                          f"(open in Obsidian to view it visually)")
+                except BridgeError as e:
+                    print(f"   • mindmap canvas skipped: {e}", file=sys.stderr)
         except BridgeError as e:
             rc = 1
             print(f"   ✗ {kind} failed: {e}", file=sys.stderr)
@@ -557,9 +591,34 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_canvas(args: argparse.Namespace) -> int:
+    """Download an existing notebook's mind map and convert it to an Obsidian Canvas."""
+    if not _require_auth():
+        return 2
+    try:
+        json_path, canvas_path = download_and_convert_mindmap(
+            args.project, args.notebook, name=args.name, artifact_id=args.artifact)
+    except BridgeError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+    print(f"✓ Mind map JSON   → {json_path.relative_to(REPO_ROOT)}")
+    print(f"✓ Obsidian Canvas → {canvas_path.relative_to(REPO_ROOT)}")
+    print("Open the .canvas file in Obsidian (it renders as a visual mind map).")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="NotebookLM bridge for the Research Monster.")
     sub = p.add_subparsers(dest="command", required=True)
+
+    cv = sub.add_parser("canvas",
+                        help="Download a notebook's mind map and convert it to an "
+                             "Obsidian Canvas (.canvas) for visual viewing.")
+    cv.add_argument("--project", required=True, help="Project name (used for vault paths).")
+    cv.add_argument("--notebook", required=True, help="Notebook id (partial ok).")
+    cv.add_argument("--name", help="Pick a specific mind map by title (fuzzy match).")
+    cv.add_argument("--artifact", help="Pick a specific mind map by artifact id.")
+    cv.set_defaults(func=cmd_canvas)
 
     sub.add_parser("doctor",
                    help="Check the install: CLI present, logged in, vault ready."

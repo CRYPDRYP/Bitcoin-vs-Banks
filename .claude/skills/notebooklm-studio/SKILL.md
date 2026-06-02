@@ -83,6 +83,19 @@ Each deliverable is written to `vault/40-outputs/<project>/<timestamp>-<kind>.md
 - **infographic** → an embedded image (`![]( )`) + link,
 - **mindmap / flashcards** → a link to view, with the raw response folded in.
 
+### Mind maps → viewable Obsidian Canvas
+NotebookLM mind maps are interactive (best viewed in the NotebookLM web app), but the
+`studio` run also **auto-downloads the mind map and converts it to an Obsidian Canvas**
+(`<timestamp>-mindmap.canvas` + the raw `.json`) so you can open it visually right in the
+vault. To (re)generate the canvas for an existing notebook's mind map:
+```bash
+python integrations/notebooklm_bridge.py canvas \
+  --project "Bitcoin vs Banks" --notebook abc123 [--name "chapter 3"]
+```
+Then open the `.canvas` file in Obsidian. Conversion is handled by
+`integrations/mindmap_canvas.py`, which is robust to NotebookLM's node-key naming and can
+also be run standalone: `python integrations/mindmap_canvas.py map.json`.
+
 ## Playbook for the agent
 
 1. **Confirm auth** by running a command; if it reports not authenticated, stop and ask
