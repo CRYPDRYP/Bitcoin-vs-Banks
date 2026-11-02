@@ -35,5 +35,8 @@ Claude knows where the research stands.
 ## Outputs (NotebookLM)
 - _(links to `vault/40-outputs/bitcoin-vs-banks/` artifacts appear here)_
 
+## Tooling & method
+- [[20261102-x-robiartec-the-rea-reverse-engineering-stack-20-repos]] — the viral "20 repos" post, claims checked; see `docs/rea-reverse-engineering-stack.md`
+
 ## Media (Wikimedia Commons)
 - _(links to `vault/10-sources/*-commons-*.md` notes appear here; files live in `vault/50-assets/commons/`)_

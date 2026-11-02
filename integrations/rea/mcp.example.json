@@ -1,0 +1,13 @@
+{
+  "_comment": "Project-scoped REA registration for Claude Code. Copy to the repo root as .mcp.json ONLY when you want REA active for this project; Claude Code will ask you to approve it. Prefer `npx rea-agents@latest setup --client claude_code` (records absolute paths, backs up config). Keep ONE registration route — plugin OR setup OR this file — or you get two `rea` servers.",
+  "mcpServers": {
+    "rea": {
+      "command": "npx",
+      "args": ["-y", "rea-agents@6.8.0", "mcp"],
+      "env": {
+        "REA_MCP_INPUT_SCHEMA_PROFILE": "compact",
+        "REA_MCP_TOOL_FAMILIES": "session,application,native,direct,electron,javascript-runtime,managed"
+      }
+    }
+  }
+}

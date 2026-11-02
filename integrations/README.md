@@ -115,3 +115,24 @@ tracking parameters stripped from stored URLs.
 python -m unittest discover -s integrations/tests -v     # 27 tests, no network
 ```
 Fixtures in `tests/fixtures/` are real responses recorded on 2026-11-02.
+
+## `x_capture.py`
+
+Files an X (Twitter) post as a source note in `vault/10-sources/` — full text, expanded
+links, author, engagement, media — via the public FxTwitter JSON API (unofficial, no key;
+x.com itself can't be fetched). Standard library only.
+
+```bash
+python x_capture.py https://x.com/robiartec/status/2116945895015231669 \
+  --project "Bitcoin vs Banks" --tag tooling --why "Pointer to the REA stack" --resolve-links
+python x_capture.py <url> --json                       # inspect without writing
+python x_capture.py <url> --fixture tests/fixtures/x_post_robiartec_rea.json   # offline
+```
+Long "note" posts come back with links truncated by X; `--resolve-links` follows the t.co
+redirects. Treat a post as a *claim*, not evidence — the note template says so.
+
+## `rea/` — REA (Reverse Engineer Anything), opt-in
+
+Wiring and checklist for the external REA MCP server; nothing vendored. See
+[`rea/README.md`](rea/README.md), the `rea-investigate` skill and
+`../docs/rea-reverse-engineering-stack.md`.

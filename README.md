@@ -71,7 +71,8 @@ start of every session via a `SessionStart` hook.
 │       ├── notebooklm-studio/   # audio / mindmap / flashcards / infographic
 │       ├── synthesize/
 │       ├── learn/
-│       └── commons-media/       # licensed charts/diagrams/photos from Wikimedia Commons
+│       ├── commons-media/       # licensed charts/diagrams/photos from Wikimedia Commons
+│       └── rea-investigate/     # evidence-first reverse engineering with the REA MCP server
 ├── vault/                      # the Obsidian memory layer (open this as a vault)
 │   ├── 00-inbox/               # unprocessed captures land here
 │   ├── 10-sources/             # one note per source
@@ -82,7 +83,7 @@ start of every session via a `SessionStart` hook.
 │   ├── MOCs/                   # Maps of Content (entry points)
 │   ├── _templates/             # note templates
 │   └── _memory/                # profile / interests / style — the "smarts"
-├── integrations/               # bridges to external engines (NotebookLM, Wikimedia Commons)
+├── integrations/               # bridges: NotebookLM, Wikimedia Commons, X posts, REA (opt-in)
 ├── workflows/                  # human-readable runbooks for each step
 └── docs/                       # architecture.md + wikimedia-commons-api.md (API deep dive)
 ```
@@ -114,6 +115,8 @@ start of every session via a `SessionStart` hook.
    - "Make an audio overview, mindmap, flashcards, and infographic from these sources"
    - "Synthesize what we have on transaction fees"
    - "Find a public-domain chart of bitcoin's price history and file it with a credit line"
+   - "Capture this X post: https://x.com/…/status/…"
+   - "Use REA to show me how this wallet binary builds a payment request — with evidence"
    - "Update memory with what we learned today"
 
 See [`workflows/`](workflows/) for the detailed runbook of each step and
@@ -136,6 +139,25 @@ python integrations/commons_bridge.py fetch "File:Bitcoin Price.webp" --tag stab
 Skill: `commons-media` · runbook: `workflows/05-media.md` · API notes: `docs/wikimedia-commons-api.md`.
 Run it from your own machine (the cloud sandbox can't reach *.wikimedia.org); the test-suite
 (`python -m unittest discover -s integrations/tests`) replays recorded responses offline.
+
+---
+
+## Opening the box — REA (reverse engineering, opt-in)
+
+Some claims about "how the rails actually work" can only be settled by the shipped software.
+[REA](https://github.com/morluto/rea) is an MIT-licensed, local-only MCP server that lets
+Claude Code inspect binaries, Electron apps, APKs and .NET assemblies and return *evidence*
+(instructions, bytes, xrefs) rather than guesses. It is **not** bundled here; install it on
+your own machine when you need it:
+
+```bash
+npx rea-agents@latest setup --client claude_code      # review the plan, approve, restart
+```
+Skill: `rea-investigate` · runbook: `workflows/06-reverse-engineering.md` ·
+deep dive (what the viral "20 repos" post gets right and wrong): `docs/rea-reverse-engineering-stack.md`.
+Authorized targets only — open-source wallets and nodes, not proprietary banking apps.
+
+X posts can now be captured as sources too: `python integrations/x_capture.py <status url>`.
 
 ---
 

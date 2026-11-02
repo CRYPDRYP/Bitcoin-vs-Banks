@@ -42,7 +42,7 @@ skill. Skills live in `.claude/skills/` and can be created/edited with **Skill C
 ### 2. Skill Creator — customization
 Lets you mint new reusable skills in natural language. The shipped skills
 (`research-capture`, `notebooklm-handoff`, `notebooklm-studio`, `synthesize`, `learn`,
-`commons-media`) are the starting set;
+`commons-media`, `rea-investigate`) are the starting set;
 add your own as your workflow grows.
 
 ### 3. NotebookLM — analysis
@@ -56,6 +56,12 @@ Illustrations for explainers and briefings. `integrations/commons_bridge.py` que
 Commons Action API (search, `imageinfo`/`extmetadata` licensing, categories, structured data),
 downloads the file into `vault/50-assets/commons/` and writes a source note with the license
 and a credit line. Driven by the `commons-media` skill; API notes in `wikimedia-commons-api.md`.
+
+### 3c. REA — evidence from shipped software (opt-in)
+When a claim can only be settled by the binary, the `rea-investigate` skill drives the
+external [REA](https://github.com/morluto/rea) MCP server (installed by the user, runs
+locally) and files evidence-linked notes in `vault/20-notes/`. Not bundled; see
+`integrations/rea/` and `rea-reverse-engineering-stack.md`.
 
 ### 4. Obsidian — memory
 A plain-markdown vault. Everything the workflow produces is stored here, which makes it
@@ -82,4 +88,7 @@ Each pass distills more of your judgment into text the tooling reloads for free.
 - Commons media land in `vault/50-assets/commons/` with a `type: source` / `source_type: media`
   note in `vault/10-sources/` carrying `license`, `license_class`, `attribution_required`, `sha1`
   and the credit line — never embed a file in an output without its note.
+- X posts land in `vault/10-sources/` as `source_type: x-post` notes (via `integrations/x_capture.py`).
+- REA findings land in `vault/20-notes/` with target SHA-256, Evidence IDs and limitations;
+  exported Evidence bundles in `vault/50-assets/rea/` (never commit target bytes you can't redistribute).
 - No secrets in the vault — auth lives in `~/.notebooklm/` (gitignored), never committed.
