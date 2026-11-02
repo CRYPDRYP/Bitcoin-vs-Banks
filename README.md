@@ -70,18 +70,21 @@ start of every session via a `SessionStart` hook.
 │       ├── notebooklm-handoff/  # briefings, study guides, Q&A
 │       ├── notebooklm-studio/   # audio / mindmap / flashcards / infographic
 │       ├── synthesize/
-│       └── learn/
+│       ├── learn/
+│       └── commons-media/       # licensed charts/diagrams/photos from Wikimedia Commons
 ├── vault/                      # the Obsidian memory layer (open this as a vault)
 │   ├── 00-inbox/               # unprocessed captures land here
 │   ├── 10-sources/             # one note per source
 │   ├── 20-notes/               # your atomic notes
 │   ├── 30-synthesis/           # synthesized arguments & comparisons
 │   ├── 40-outputs/             # NotebookLM-generated artifacts
+│   ├── 50-assets/              # downloaded media (Commons files + credit lines)
 │   ├── MOCs/                   # Maps of Content (entry points)
 │   ├── _templates/             # note templates
 │   └── _memory/                # profile / interests / style — the "smarts"
+├── integrations/               # bridges to external engines (NotebookLM, Wikimedia Commons)
 ├── workflows/                  # human-readable runbooks for each step
-└── docs/architecture.md        # how the pieces fit together
+└── docs/                       # architecture.md + wikimedia-commons-api.md (API deep dive)
 ```
 
 ---
@@ -110,10 +113,29 @@ start of every session via a `SessionStart` hook.
    - "Prep a NotebookLM handoff for the sources tagged #consensus"
    - "Make an audio overview, mindmap, flashcards, and infographic from these sources"
    - "Synthesize what we have on transaction fees"
+   - "Find a public-domain chart of bitcoin's price history and file it with a credit line"
    - "Update memory with what we learned today"
 
 See [`workflows/`](workflows/) for the detailed runbook of each step and
 [`docs/architecture.md`](docs/architecture.md) for the full design.
+
+---
+
+## Illustrating the research — Wikimedia Commons
+
+Explainers need pictures, and pictures need licenses. `integrations/commons_bridge.py` talks
+to the Wikimedia Commons API (stdlib only, policy-compliant User-Agent, rate-limit aware) to
+**search, vet and file** charts, diagrams and photos. Every file lands in `vault/50-assets/`
+with a source note carrying its license, author and a ready-to-paste credit line:
+
+```bash
+export COMMONS_CONTACT="you@example.org"          # once — Wikimedia's User-Agent policy
+python integrations/commons_bridge.py search "bitcoin price" --filetype drawing --license no-sa
+python integrations/commons_bridge.py fetch "File:Bitcoin Price.webp" --tag stability --width 1600
+```
+Skill: `commons-media` · runbook: `workflows/05-media.md` · API notes: `docs/wikimedia-commons-api.md`.
+Run it from your own machine (the cloud sandbox can't reach *.wikimedia.org); the test-suite
+(`python -m unittest discover -s integrations/tests`) replays recorded responses offline.
 
 ---
 

@@ -34,3 +34,6 @@ Claude knows where the research stands.
 
 ## Outputs (NotebookLM)
 - _(links to `vault/40-outputs/bitcoin-vs-banks/` artifacts appear here)_
+
+## Media (Wikimedia Commons)
+- _(links to `vault/10-sources/*-commons-*.md` notes appear here; files live in `vault/50-assets/commons/`)_

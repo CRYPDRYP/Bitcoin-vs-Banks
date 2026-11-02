@@ -40,8 +40,9 @@ Orchestrates everything. The user speaks plain language; Claude invokes the righ
 skill. Skills live in `.claude/skills/` and can be created/edited with **Skill Creator**.
 
 ### 2. Skill Creator — customization
-Lets you mint new reusable skills in natural language. The four shipped skills
-(`research-capture`, `notebooklm-handoff`, `synthesize`, `learn`) are the starting set;
+Lets you mint new reusable skills in natural language. The shipped skills
+(`research-capture`, `notebooklm-handoff`, `notebooklm-studio`, `synthesize`, `learn`,
+`commons-media`) are the starting set;
 add your own as your workflow grows.
 
 ### 3. NotebookLM — analysis
@@ -49,6 +50,12 @@ Heavy reading, summarization, briefings, study guides, Q&A. Driven programmatica
 `integrations/notebooklm_bridge.py`, which wraps the `notebooklm` CLI (`notebooklm-py`).
 Running analysis here spends **Google's** compute, not Claude tokens. Outputs are
 written back into `vault/40-outputs/`.
+
+### 3b. Wikimedia Commons — media
+Illustrations for explainers and briefings. `integrations/commons_bridge.py` queries the
+Commons Action API (search, `imageinfo`/`extmetadata` licensing, categories, structured data),
+downloads the file into `vault/50-assets/commons/` and writes a source note with the license
+and a credit line. Driven by the `commons-media` skill; API notes in `wikimedia-commons-api.md`.
 
 ### 4. Obsidian — memory
 A plain-markdown vault. Everything the workflow produces is stored here, which makes it
@@ -72,4 +79,7 @@ Each pass distills more of your judgment into text the tooling reloads for free.
 - NotebookLM artifacts land in `vault/40-outputs/<project>/` with frontmatter:
   `notebook_id`, `artifact_id`, `sources`, `project`, `tags`.
 - Syntheses link to source notes via `[[wikilinks]]`; MOCs link to syntheses.
+- Commons media land in `vault/50-assets/commons/` with a `type: source` / `source_type: media`
+  note in `vault/10-sources/` carrying `license`, `license_class`, `attribution_required`, `sha1`
+  and the credit line — never embed a file in an output without its note.
 - No secrets in the vault — auth lives in `~/.notebooklm/` (gitignored), never committed.
