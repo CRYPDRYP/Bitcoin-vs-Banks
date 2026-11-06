@@ -17,3 +17,6 @@ vault/.obsidian/cache
 # OS
 .DS_Store
 Thumbs.db
+
+# Local run logs from scripts/run-countdown.sh
+vault/40-outputs/gta6/logs/

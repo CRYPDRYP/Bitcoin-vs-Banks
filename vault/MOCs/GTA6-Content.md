@@ -14,8 +14,9 @@ this so Claude knows where production stands.
 - _Status:_ lane scaffolded and briefed. Everygen registered in `.mcp.json`;
   `everygen-produce` skill ready; rights rules captured; launch plan drafted; all 14 daily
   countdown briefs (D-13 → launch day) generated. No generations yet.
-- _Next:_ run `/mcp` login on your own machine → "Run the D-13 countdown brief" →
-  approve the draft → final render, voiceover, captions → card it → `learn`.
+- _Next (one-time, on your machine):_ `claude` → approve `everygen` → `/mcp` → sign in →
+  `scripts/run-countdown.sh --dry-run` → `scripts/run-countdown.sh` → optionally
+  `scripts/install-countdown-schedule.sh` so every remaining day runs itself.
 
 ## Rules of the lane
 - [[20261106-gta6-fan-content-rules]] — what Rockstar allows; no Rockstar assets into any generator.

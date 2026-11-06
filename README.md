@@ -86,7 +86,8 @@ start of every session via a `SessionStart` hook.
 │   ├── MOCs/                   # Maps of Content (entry points)
 │   ├── _templates/             # note templates
 │   └── _memory/                # profile / interests / style — the "smarts"
-├── integrations/               # notebooklm_bridge.py, mindmap_canvas.py, everygen_cards.py
+├── integrations/               # notebooklm_bridge.py, mindmap_canvas.py, everygen_cards.py, countdown_briefs.py
+├── scripts/                    # setup.sh, run-countdown.sh, install-countdown-schedule.sh
 ├── workflows/                  # human-readable runbooks for each step
 └── docs/architecture.md        # how the pieces fit together
 ```
@@ -120,6 +121,7 @@ start of every session via a `SessionStart` hook.
    - "Make an audio overview, mindmap, flashcards, and infographic from these sources"
    - "Synthesize what we have on transaction fees"
    - "Make the D-13 countdown short from the GTA 6 plan" / "Turn the fees synthesis into a 30-second explainer"
+   - Or hands-off: `scripts/run-countdown.sh` (daily via `scripts/install-countdown-schedule.sh`)
    - "Update memory with what we learned today"
 
 See [`workflows/`](workflows/) for the detailed runbook of each step and
