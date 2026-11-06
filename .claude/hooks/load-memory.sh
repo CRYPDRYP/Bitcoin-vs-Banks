@@ -25,11 +25,23 @@ else
   echo "(no memory layer found yet — run the 'learn' skill after your first session)"
 fi
 
-# Surface the active project's top-level MOC so Claude knows where things stand.
-ACTIVE_MOC="$ROOT/vault/MOCs/Bitcoin-vs-Banks.md"
-if [ -f "$ACTIVE_MOC" ]; then
-  echo "----- ACTIVE PROJECT MOC: Bitcoin-vs-Banks.md -----"
-  cat "$ACTIVE_MOC"
+# Surface every project MOC so Claude knows where each lane stands
+# (Bitcoin-vs-Banks research, GTA6-Content production, and any you add later).
+MOCS="$ROOT/vault/MOCs"
+if [ -d "$MOCS" ]; then
+  for moc in "$MOCS"/*.md; do
+    [ -f "$moc" ] || continue
+    echo "----- PROJECT MOC: $(basename "$moc") -----"
+    cat "$moc"
+    echo
+  done
+fi
+
+# Tell Claude which production engine is wired in, without reading any secrets.
+if [ -f "$ROOT/.mcp.json" ] && grep -q '"everygen"' "$ROOT/.mcp.json"; then
+  echo "----- PRODUCTION ENGINE -----"
+  echo "Everygen MCP registered in .mcp.json (https://everygen.ai/api/mcp)."
+  echo "If tools are missing, run /mcp and sign in. Skill: everygen-produce. Runbook: workflows/05-produce.md"
   echo
 fi
 
