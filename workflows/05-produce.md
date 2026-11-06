@@ -34,12 +34,19 @@ Claude will:
    ```
 6. Link the cards from the brief and the project MOC.
 
-## Daily countdown (GTA 6)
+## Daily countdown (GTA 6), fully automated on your machine
 ```bash
-python integrations/countdown_briefs.py          # adds any missing briefs, today → launch day
+scripts/run-countdown.sh --dry-run        # shows today's brief and the exact headless prompt
+scripts/run-countdown.sh                  # runs it hands-off through Claude Code + Everygen
+scripts/install-countdown-schedule.sh     # fires it daily at 09:15 local (launchd / cron)
+scripts/install-countdown-schedule.sh --uninstall
 ```
-Then say "Run today's countdown brief." Only D-13 and launch day render a new scene; the
-other days reuse the approved final and change the counter, narration and captions.
+The runner creates any missing brief, checks the Everygen credit balance, refuses to spend
+more than `CREDIT_CAP` credits (default 60), generates, cards every result, and logs to
+`vault/40-outputs/gta6/logs/`. Only D-13 and launch day render a new scene; the other days
+reuse the approved final and change the counter, narration and captions. Interactive
+fallback: say "Run today's countdown brief."
+
 
 ## What happens
 - Everygen renders on its credits; Claude only orchestrates.

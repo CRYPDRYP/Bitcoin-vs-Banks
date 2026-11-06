@@ -114,7 +114,9 @@ loop can read (`deliverable`, `engine: everygen`, `model`, `credits`, `url`, `so
 `python integrations/countdown_briefs.py` writes today's-through-launch countdown briefs into
 `vault/40-outputs/gta6/` (idempotent; `--all` for every day, `--dry-run` to preview). When
 the user says "run today's countdown", open the brief dated today, follow its shot list, and
-reuse the approved D-13 final clip rather than re-rendering the scene.
+reuse the approved D-13 final clip rather than re-rendering the scene. The hands-off version
+is `scripts/run-countdown.sh` (headless `claude -p` with this skill, credit cap, logs), which
+`scripts/install-countdown-schedule.sh` puts on a daily local schedule.
 
 ## Style defaults (from `vault/_memory/style-guide.md`)
 
