@@ -46,19 +46,7 @@ BRIEF_STEM="$(basename "$BRIEF" .md)"
 LOGDIR="vault/40-outputs/gta6/logs"; mkdir -p "$LOGDIR"
 LOG="$LOGDIR/${STAMP}-run.log"
 
-# --- 2. preflight: claude present, everygen server approved & signed in -----------------
-if ! command -v claude >/dev/null 2>&1; then
-  echo "claude (Claude Code CLI) is not on PATH. Install it, then run the one-time setup in the header." >&2; exit 1
-fi
-MCP_STATUS="$(claude mcp get everygen 2>&1 || true)"
-if echo "$MCP_STATUS" | grep -qiE "pending approval|needs authentication|not found|No MCP server"; then
-  echo "Everygen MCP is not ready in this repo:" >&2
-  echo "$MCP_STATUS" | sed 's/^/  /' >&2
-  echo "One-time fix: run 'claude' here, approve the everygen server, then '/mcp' → everygen → sign in." >&2
-  exit 1
-fi
-
-# --- 3. the headless instruction -------------------------------------------------------
+# --- 2. the headless instruction -------------------------------------------------------
 read -r -d '' PROMPT <<PROMPT_EOF || true
 Use the everygen-produce skill. Run the brief at ${BRIEF} end to end WITHOUT pausing for approval, under these rules:
 1. First call the Everygen read tool to get the credit balance. If the balance is below the brief's credit_budget, or the run would exceed ${CREDIT_CAP} credits in total, write a short note under "## Results" in the brief explaining that, and stop without generating anything.
@@ -83,6 +71,19 @@ if [ "$DRY_RUN" -eq 1 ]; then
   echo "Prompt:"; echo "$PROMPT" | sed 's/^/  /'
   exit 0
 fi
+
+# --- 4. preflight (skipped on --dry-run): claude present, everygen server approved & signed in -----------------
+if ! command -v claude >/dev/null 2>&1; then
+  echo "claude (Claude Code CLI) is not on PATH. Install it, then run the one-time setup in the header." >&2; exit 1
+fi
+MCP_STATUS="$(claude mcp get everygen 2>&1 || true)"
+if echo "$MCP_STATUS" | grep -qiE "pending approval|needs authentication|not found|No MCP server"; then
+  echo "Everygen MCP is not ready in this repo:" >&2
+  echo "$MCP_STATUS" | sed 's/^/  /' >&2
+  echo "One-time fix: run 'claude' here, approve the everygen server, then '/mcp' → everygen → sign in." >&2
+  exit 1
+fi
+
 
 echo "[$(date -Is)] running $BRIEF (cap $CREDIT_CAP credits)" | tee -a "$LOG"
 "${CMD[@]}" 2>&1 | tee -a "$LOG"
