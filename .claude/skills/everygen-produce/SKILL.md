@@ -109,6 +109,13 @@ Kinds: `video`, `image`, `voiceover`, `audio`, `captions`. The card lands in
 `vault/40-outputs/<project>/<timestamp>-<kind>-<slug>.md` with frontmatter the rest of the
 loop can read (`deliverable`, `engine: everygen`, `model`, `credits`, `url`, `sources`, `status`).
 
+### GTA 6 countdown lane (automated briefs)
+
+`python integrations/countdown_briefs.py` writes today's-through-launch countdown briefs into
+`vault/40-outputs/gta6/` (idempotent; `--all` for every day, `--dry-run` to preview). When
+the user says "run today's countdown", open the brief dated today, follow its shot list, and
+reuse the approved D-13 final clip rather than re-rendering the scene.
+
 ## Style defaults (from `vault/_memory/style-guide.md`)
 
 - Narration is neutral and precise. No hype words, no price talk, no financial advice.

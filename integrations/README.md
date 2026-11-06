@@ -85,3 +85,16 @@ Writes `vault/40-outputs/<project>/<timestamp>-<kind>-<slug>.md` with frontmatte
 `generation_id`, `status`, `sources`, `tags`) and the prompt in a code block. `--dry-run`
 prints instead of writing. No network, no secrets. See the `everygen-produce` skill and
 `../workflows/05-produce.md`.
+
+## `countdown_briefs.py`
+
+Generates the GTA 6 daily countdown briefs (D-13 → launch day, 2026-11-19) into
+`vault/40-outputs/gta6/` from the official dates only. Idempotent: existing briefs are never
+overwritten, so it can run every day or all at once.
+
+```bash
+python countdown_briefs.py              # today → launch day
+python countdown_briefs.py --all        # every day
+python countdown_briefs.py --dry-run    # preview
+```
+No network, no secrets.

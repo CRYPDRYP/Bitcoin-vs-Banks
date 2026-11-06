@@ -34,6 +34,13 @@ Claude will:
    ```
 6. Link the cards from the brief and the project MOC.
 
+## Daily countdown (GTA 6)
+```bash
+python integrations/countdown_briefs.py          # adds any missing briefs, today → launch day
+```
+Then say "Run today's countdown brief." Only D-13 and launch day render a new scene; the
+other days reuse the approved final and change the counter, narration and captions.
+
 ## What happens
 - Everygen renders on its credits; Claude only orchestrates.
 - Results live as cards in `vault/40-outputs/<project>/` with frontmatter
