@@ -12,6 +12,11 @@
 - `#regulation` — AML/KYC, capital requirements, consumer protection
 - `#fraud` — chargebacks, irreversibility, scams
 
+## Side lane (GTA 6 content, Everygen)
+- `#gta6` — launch-window facts, formats, cadence
+- `#produce` — short-form production: briefs, prompts, credit budgets, what worked
+- `#rights` — Rockstar fan-content policy, generative-AI clause, platform AI labels
+
 ## Standing interests
 - Mechanism over narrative: how the rails actually work.
 - Comparable, like-for-like metrics across both systems.

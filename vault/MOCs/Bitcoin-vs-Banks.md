@@ -34,3 +34,7 @@ Claude knows where the research stands.
 
 ## Outputs (NotebookLM)
 - _(links to `vault/40-outputs/bitcoin-vs-banks/` artifacts appear here)_
+
+## Outputs (Everygen shorts / explainers)
+- _(briefs and cards from the `everygen-produce` skill appear here, e.g. a 30-second
+  fees explainer built from a synthesis note)_

@@ -64,3 +64,37 @@ Each deliverable is written to `vault/40-outputs/<project>/` as a card with fron
 - Authentication state is stored by the CLI under `~/.notebooklm/` — **never committed**.
 - `notebooklm-py` is an unofficial, community library for automating NotebookLM; the
   bridge depends only on its documented CLI surface so it degrades gracefully.
+
+## `everygen_cards.py`
+
+Files one Everygen generation (video / image / voiceover / audio / captions) into the vault
+as an output card. The Everygen MCP itself is registered in the repo's `.mcp.json`
+(`https://everygen.ai/api/mcp`, OAuth via `/mcp` in Claude Code); this script is the
+write-back half, mirroring the cards `notebooklm_bridge.py` writes for NotebookLM.
+
+```bash
+python everygen_cards.py --project gta6 --kind video \
+  --title "Vice-coast dusk drive, hook A" --model "Seedance 2.5" --credits 16 \
+  --aspect 9:16 --duration 4 --resolution 720p \
+  --url "https://…/clip.mp4" --prompt "…exact prompt…" \
+  --source "[[20261106-gta6-launch-shorts-plan]]" --brief "[[20261106-d13-countdown-brief]]" \
+  --moc "[[GTA6-Content]]" --status draft
+```
+Writes `vault/40-outputs/<project>/<timestamp>-<kind>-<slug>.md` with frontmatter
+(`engine: everygen`, `deliverable`, `model`, `credits`, `aspect`, `duration_s`, `url`,
+`generation_id`, `status`, `sources`, `tags`) and the prompt in a code block. `--dry-run`
+prints instead of writing. No network, no secrets. See the `everygen-produce` skill and
+`../workflows/05-produce.md`.
+
+## `countdown_briefs.py`
+
+Generates the GTA 6 daily countdown briefs (D-13 → launch day, 2026-11-19) into
+`vault/40-outputs/gta6/` from the official dates only. Idempotent: existing briefs are never
+overwritten, so it can run every day or all at once.
+
+```bash
+python countdown_briefs.py              # today → launch day
+python countdown_briefs.py --all        # every day
+python countdown_briefs.py --dry-run    # preview
+```
+No network, no secrets.
