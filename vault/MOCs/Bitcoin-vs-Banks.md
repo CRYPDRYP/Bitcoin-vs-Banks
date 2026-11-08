@@ -10,14 +10,14 @@ The entry point for the active project. The `SessionStart` hook surfaces this so
 Claude knows where the research stands.
 
 ## Current state
-- _Status:_ scaffold initialized. No sources analyzed yet.
+- _Status:_ scaffold initialized. 1 source captured, none analyzed yet.
 - _Next:_ capture sources → run a `notebooklm-handoff` → `synthesize`.
 
 ## Threads
 ### Settlement & finality `#settlement`
--
+- [[20261108-x402-list-cipher-subnet-screener]] — live example of per-call USDC settlement on Base via x402 (our own API, third-party monitored)
 ### Fees & cost `#fees`
--
+- [[20261108-x402-list-cipher-subnet-screener]] — measured price points of $0.01 to $0.25 per HTTP call, no account or card rail
 ### Custody & counterparty risk `#custody`
 -
 ### Access & inclusion `#access`
